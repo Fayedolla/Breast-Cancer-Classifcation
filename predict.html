@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machine Learning Prediction</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            line-height: 1.6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: #fff;
+            width: 100%;
+            max-width: 600px;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #4a90e2;
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+        p {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 16px;
+            color: #666;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        input[type="text"], select, button, input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            margin-top: 8px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 16px;
+            color: #333;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        input[type="text"], select {
+            background-color: #f9f9f9;
+        }
+        input[type="text"]:focus, select:focus {
+            border-color: #4a90e2;
+            background-color: #f0f8ff;
+        }
+        button {
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 10s ease;
+        }
+        button:hover {
+            background-color: #357ABD;
+        }
+        button:active {
+            background-color: #1f6fa4;
+        }
+        .result {
+            margin-top: 20px;
+            font-size: 18px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .error {
+            color: #e74c3c;
+        }
+        input[type="file"] {
+            display: block;
+        }
+        .success {
+            color: #27ae60;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Machine Learning Prediction</h1>
+        <p>Use the form below to make predictions using different machine learning models.</p>
+
+        <!-- Removed any form tags -->
+        <div class="form-group">
+            <label for="model">Select Model:</label>
+            <select id="model">
+                <option value="svm">SVM</option>
+                <option value="decision_tree">Decision Tree</option>
+                <option value="logistic_regression">Logistic Regression</option>
+                <option value="naive_bayes">Naive Bayes</option>
+                <option value="knn">KNN</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="features">Enter Features (comma-separated):</label>
+            <input type="text" id="features" placeholder="e.g. 5.1, 3.5, 1.4, 0.2">
+        </div>
+
+        <div class="form-group">
+            <label for="fileUpload">Or Upload a JSON File:</label>
+            <input type="file" id="fileUpload" accept=".json">
+        </div>
+
+        <button id="predictButton" type="button">Predict</button>
+
+        <div class="result" id="result">
+            <!-- Prediction result will appear here -->
+        </div>
+    </div>
+
+    <script>
+        // Prevent accidental form submission or page refresh
+        document.addEventListener("submit", function (event) {
+            event.preventDefault();
+            console.log("Default form submission prevented globally.");
+        });
+
+        document.getElementById("predictButton").addEventListener("click", function (event) {
+            console.log("Button clicked! Preventing default behavior...");
+            event.preventDefault(); // Ensure no refresh occurs
+
+            const model = document.getElementById("model").value;
+            const features = document.getElementById("features").value.split(",").map(Number);
+            const file = document.getElementById("fileUpload").files[0];
+
+            const resultDiv = document.getElementById("result");
+            resultDiv.textContent = "Processing...";
+            resultDiv.classList.remove("error", "success");
+
+            // Handle file upload
+            if (file) {
+                console.log("File detected. Uploading file...");
+                const formData = new FormData();
+                formData.append('file', file);
+
+                fetch("http://127.0.0.1:5000/predict_file", {
+                    method: "POST",
+                    body: formData
+                })
+                    .then(response => response.json())
+                    .then(responseData => {
+                        console.log("File upload response:", responseData);
+                        displayResult(responseData);
+                    })
+                    .catch(error => {
+                        console.error("Error in file upload:", error);
+                        displayResult({ error: `Error: ${error.message}` });
+                    });
+
+            } else if (features.length === 0 || features.includes(NaN)) {
+                alert("Please enter valid feature values or upload a valid JSON file.");
+            } else {
+                console.log("Sending feature data for prediction...");
+                const data = {
+                    model: model,
+                    features: features
+                };
+
+                fetch("http://127.0.0.1:5000/predict", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(data)
+                })
+                    .then(response => response.json())
+                    .then(responseData => {
+                        console.log("Prediction response received:", responseData);
+                        displayResult(responseData);
+                    })
+                    .catch(error => {
+                        console.error("Error in prediction request:", error);
+                        displayResult({ error: `Error: ${error.message}` });
+                    });
+            }
+        });
+
+        function displayResult(responseData) {
+            const resultDiv = document.getElementById("result");
+            if (responseData.error) {
+                resultDiv.textContent = `Error: ${responseData.error}`;
+                resultDiv.classList.add("error");
+            } else {
+                resultDiv.textContent = `Prediction: ${responseData.prediction} (using ${responseData.model})`;
+                resultDiv.classList.add("success");
+            }
+            console.log("Displayed result:", resultDiv.textContent);
+        }
+    </script>
+
+</body>
+</html>
